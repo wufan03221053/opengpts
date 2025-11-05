@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from functools import lru_cache
 from typing import Annotated
 
+import bcrypt
 import jwt
 import requests
 from fastapi import Depends, HTTPException, Request
@@ -9,13 +10,18 @@ from fastapi.security.http import HTTPBearer
 
 import app.storage as storage
 from app.auth.settings import AuthType, settings
-from app.schema import User
+from app.mongodb import get_mongo_db
+from app.schema import User, UserLogin
 
 
 class AuthHandler(ABC):
     @abstractmethod
     async def __call__(self, request: Request) -> User:
         """Auth handler that returns a user object or raises an HTTPException."""
+
+    async def authenticate_user(self, username: str, password: str) -> Optional[User]:
+        """Authenticate a user by username and password."""
+        raise NotImplementedError("authenticate_user not implemented")
 
 
 class NOOPAuth(AuthHandler):
@@ -25,6 +31,33 @@ class NOOPAuth(AuthHandler):
         sub = request.cookies.get("opengpts_user_id") or self._default_sub
         user, _ = await storage.get_or_create_user(sub)
         return user
+
+
+class UsernamePasswordAuth(AuthHandler):
+    async def __call__(self, request: Request) -> User:
+        # For now, just use NOOP auth for API requests
+        # We'll implement proper session management later
+        sub = request.cookies.get("opengpts_user_id") or "static-default-user-id"
+        user, _ = await storage.get_or_create_user(sub)
+        return user
+
+    async def authenticate_user(self, username: str, password: str) -> Optional[User]:
+        """Authenticate a user by username and password."""
+        db = await get_mongo_db()
+        user_login = await db.user_login.find_one({"username": username})
+        if user_login is None:
+            return None
+        
+        # Check password
+        if not bcrypt.checkpw(password.encode('utf-8'), user_login["password_hash"].encode('utf-8')):
+            return None
+        
+        # Get user from user_id
+        async with storage.get_pg_pool().acquire() as conn:
+            record = await conn.fetchrow('SELECT * FROM "user" WHERE user_id = $1', user_login["user_id"])
+            if record is None:
+                return None
+            return User(**record)
 
 
 class JWTAuthBase(AuthHandler):

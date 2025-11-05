@@ -266,3 +266,33 @@ async def get_or_create_user(sub: str) -> tuple[User, bool]:
             'INSERT INTO "user" (sub) VALUES ($1) RETURNING *', sub
         )
         return User(**record), True
+
+
+async def create_user_login(user_id: str, username: str, password_hash: str) -> UserLogin:
+    """Create a new user login."""
+    async with get_pg_pool().acquire() as conn:
+        record = await conn.fetchrow(
+            'INSERT INTO user_login (user_id, username, password_hash) VALUES ($1, $2, $3) RETURNING *',
+            user_id,
+            username,
+            password_hash
+        )
+        return UserLogin(**record)
+
+
+async def get_user_login_by_username(username: str) -> Optional[UserLogin]:
+    """Get a user login by username."""
+    async with get_pg_pool().acquire() as conn:
+        record = await conn.fetchrow('SELECT * FROM user_login WHERE username = $1', username)
+        if record is None:
+            return None
+        return UserLogin(**record)
+
+
+async def get_user_login_by_user_id(user_id: str) -> Optional[UserLogin]:
+    """Get a user login by user ID."""
+    async with get_pg_pool().acquire() as conn:
+        record = await conn.fetchrow('SELECT * FROM user_login WHERE user_id = $1', user_id)
+        if record is None:
+            return None
+        return UserLogin(**record)

@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.assistants import router as assistants_router
+from app.api.auth import router as auth_router
 from app.api.runs import router as runs_router
 from app.api.threads import router as threads_router
 
@@ -26,4 +27,10 @@ router.include_router(
     threads_router,
     prefix="/threads",
     tags=["threads"],
+)
+
+router.include_router(
+    auth_router,
+    prefix="/auth",
+    tags=["auth"],
 )
