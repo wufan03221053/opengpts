@@ -13,6 +13,19 @@ class User(BaseModel):
     """The time the user was created."""
 
 
+class UserLogin(BaseModel):
+    user_id: str
+    """The ID of the user."""
+    username: str
+    """The username of the user."""
+    password_hash: str
+    """The hashed password of the user."""
+    created_at: datetime
+    """The time the user login was created."""
+    updated_at: datetime
+    """The time the user login was updated."""
+
+
 class Assistant(BaseModel):
     assistant_id: str
     """The ID of the assistant."""
